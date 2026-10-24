@@ -173,7 +173,7 @@ async function syncNews() {
         if (!title || !link.startsWith("http")) continue;
         const rawDesc = tag(it, "description");
         let summary = strip(rawDesc);
-        if (summary.length > 220) summary = summary.slice(0, 217).replace(/\s+\S*$/, "") + "…";
+        if (summary.length > 480) summary = summary.slice(0, 477).replace(/\s+\S*$/, "") + "…";
         const pub = new Date(tag(it, "pubDate") || tag(it, "dc:date") || Date.now());
         const when = isNaN(+pub) ? new Date() : pub;
         await sql`insert into f1.news (id, title, summary, link, image, source, published_at)

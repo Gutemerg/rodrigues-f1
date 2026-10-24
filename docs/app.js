@@ -277,7 +277,7 @@ const img = (src, cls, alt = '') => src
   ? `<img class="${cls}" src="${esc(src)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'${cls}'}))">`
   : `<div class="${cls}" aria-hidden="true"></div>`;
 const newsItem = (n) => `<a class="item" href="#materia/${esc(n.id)}"><div class="tx"><span class="kicker">${esc(n.source)}</span><h4>${esc(n.title)}</h4><div class="meta" style="margin-top:6px">${ago(new Date(n.published_at))}</div></div>${img(n.image, 'th')}</a>`;
-const newsLead = (n) => `<a class="lead" href="#materia/${esc(n.id)}">${img(n.image, 'ph')}<div class="tx"><span class="kicker red">${esc(n.source)}</span><h3>${esc(n.title)}</h3>${n.summary ? `<p>${esc(n.summary)}</p>` : ''}<p class="meta" style="margin-top:10px">${ago(new Date(n.published_at))}</p></div></a>`;
+const newsLead = (n) => `<a class="lead" href="#materia/${esc(n.id)}">${n.image ? img(n.image, 'ph') : ''}<div class="tx"><span class="kicker red">${esc(n.source)}</span><h3>${esc(n.title)}</h3>${n.summary ? `<p>${esc(n.summary)}</p>` : ''}<p class="meta" style="margin-top:10px">${ago(new Date(n.published_at))}</p></div></a>`;
 function strip(r) {
   const nx = nextSession(r);
   return `<div class="strip">${r.sessions.map((s) => {
@@ -351,7 +351,7 @@ function vNoticias() {
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(n);
   }
-  for (const [k, items] of groups) html += `<div class="label">${esc(k)}</div><div class="list">${items.map(newsItem).join('')}</div>`;
+  for (const [k, items] of groups) html += `<div class="label">${esc(k)}</div><div class="feed">${items.map(newsLead).join('')}</div>`;
   return html;
 }
 

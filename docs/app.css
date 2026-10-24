@@ -11,7 +11,8 @@
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 body{min-height:100dvh}
 a{color:var(--red);text-decoration:none}
-a:hover{color:#FF7A70}
+@media (hover:hover){a:hover{color:#FF7A70}}
+a.lead,a.item,a.row-link,a.cal-hero,.cal a,.inbox a,a.banner{color:var(--text)}
 button{font:inherit;color:inherit;cursor:pointer}
 img{display:block;max-width:100%}
 :focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:6px}
@@ -273,3 +274,6 @@ img{display:block;max-width:100%}
 .theme-seg{grid-template-columns:repeat(3,minmax(0,1fr))}
 .ev-hero .bgtrk{top:12px;right:-56px;width:250px;height:250px}
 .ev-hero .bgtrk .st{display:none}
+
+.feed{display:flex;flex-direction:column;gap:12px}
+.lead p.sum{display:block}
