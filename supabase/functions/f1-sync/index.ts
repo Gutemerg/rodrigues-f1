@@ -70,7 +70,7 @@ async function driverPhoto(driverId: string, wikiUrl?: string): Promise<string |
       if (r.ok) {
         const j = await r.json();
         const src: string | undefined = j.thumbnail?.source ?? j.originalimage?.source;
-        if (src) photo = src.replace(/\/\d+px-/, "/400px-");
+        if (src) photo = src.replace(/\/\d+px-/, "/330px-"); // tamanho padrão aceito pela Wikimedia
       }
     }
   } catch (_) { /* sem foto */ }
