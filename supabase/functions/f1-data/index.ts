@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     from f1.races r left join f1.sessions s on s.season = r.season and s.round = r.round
     where r.season = ${season}
     group by r.season, r.round order by r.round`;
-  const drivers = await sql`select position, code, given_name, family_name, nationality, team, points, wins
+  const drivers = await sql`select position, code, given_name, family_name, nationality, team, points, wins, photo
     from f1.driver_standings where season = ${season} order by position`;
   const teams = await sql`select position, team, nationality, points, wins
     from f1.constructor_standings where season = ${season} order by position`;

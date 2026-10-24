@@ -58,10 +58,17 @@ const I = {
   trophy: svg('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'),
   pin: svg('<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>'),
 };
-function checker(cols, rows, cell, color = '#F4F4F5') {
+function checker(cols, rows, cell, color = 'currentColor') {
   let r = '';
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if ((x + y) % 2 === 0) r += `<rect x="${x * cell}" y="${y * cell}" width="${cell}" height="${cell}"/>`;
   return `<svg width="${cols * cell}" height="${rows * cell}" viewBox="0 0 ${cols * cell} ${rows * cell}" fill="${color}" style="transform:skewX(-14deg);flex:none" aria-hidden="true">${r}</svg>`;
+}
+function track(loc, cls = 'trk', label) {
+  const d = window.CIRCUITS && window.CIRCUITS[loc];
+  if (!d) return '';
+  const m = d.match(/^M([\d.]+) ([\d.]+)/);
+  const a = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
+  return `<svg class="${cls}" viewBox="0 0 100 100" ${a}><path d="${d}"/>${m ? `<circle class="st" cx="${m[1]}" cy="${m[2]}" r="3.2"/>` : ''}</svg>`;
 }
 const logo = () => `<span class="logo" role="img" aria-label="RODRIGUES F1"><span class="w">RODRIGUES <b>F1</b></span><span class="u"><span class="bar"></span>${checker(6, 2, 3)}</span></span>`;
 
@@ -101,6 +108,7 @@ const teamColor = (t) => (TEAM_COLORS.find(([k]) => String(t).toLowerCase().incl
 let DATA = store.get('data', null);
 let RACES = [];
 function prepare(d) {
+  (d?.news || []).forEach((n) => { n.title = String(n.title).replace(/^F1\s*[-–:]\s*/i, ''); });
   RACES = (d?.races || []).map((r) => {
     const sessions = (r.sessions || []).map((s) => ({ kind: s.kind, at: new Date(s.at) })).sort((a, b) => a.at - b.at);
     const race = sessions.find((s) => s.kind === 'RACE');
@@ -143,6 +151,19 @@ function countdownText(ms) {
   const p = (n) => String(n).padStart(2, '0');
   return d > 0 ? `${d}d ${p(h)}h ${p(m)}m` : `${p(h)}:${p(m)}:${p(s)}`;
 }
+
+/* ---------------- tema ---------------- */
+let THEME = store.get('theme', 'dark');
+const mqLight = matchMedia('(prefers-color-scheme: light)');
+function applyTheme() {
+  const t = THEME === 'auto' ? (mqLight.matches ? 'light' : 'dark') : THEME;
+  document.documentElement.dataset.theme = t;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.content = t === 'light' ? '#F4F4F6' : '#0D0D0F';
+}
+function setTheme(v) { THEME = v; store.set('theme', v); applyTheme(); }
+mqLight.addEventListener?.('change', () => { if (THEME === 'auto') applyTheme(); });
+applyTheme();
 
 /* ---------------- preferências e push ---------------- */
 const DEFAULT_PREFS = { weekend: true, practice: false, quali: true, race: true, news: true, leads: [30] };
@@ -290,7 +311,7 @@ function vInicio() {
     const st = raceState(r);
     html += `<section class="hero" aria-label="Fim de semana de corrida">
       <div class="hero-top"><span class="kicker">Fim de semana de corrida</span>${stateBadge(st, r)}</div>
-      <div style="padding:8px 16px 0"><h1>${esc(gpName(r.name))}</h1><p class="where">${esc(r.circuit || '')} · ${esc(r.locality || '')} · ${dateRange(r)}</p></div>
+      <div class="hero-title"><div><h1>${esc(gpName(r.name))}</h1><p class="where">${esc(r.circuit || '')} · ${esc(r.locality || '')} · ${dateRange(r)}</p></div>${track(r.locality)}</div>
       ${nextBlock(r)}${strip(r)}
       <div style="padding:16px"><a class="btn primary" href="#evento/${r.round}">Ver fim de semana completo ${I.chev}</a></div></section>`;
     const nx = raceAfter(r);
@@ -363,7 +384,7 @@ function vCalendario() {
     return `<a href="#evento/${r.round}" class="${isPast ? 'past' : ''}">
       <div class="datebox"><small>${monShort(r.first) === monShort(r.raceAt) ? monShort(r.raceAt) : monShort(r.first) + '–' + monShort(r.raceAt)}</small><b>${dayNum(r.first)}–${dayNum(r.raceAt)}</b></div>
       <div class="n"><b>${esc(gpName(r.name))}</b>${r.country === 'Brazil' ? '<span class="badge home">CASA</span>' : ''}${sprint ? '<span class="badge spr">SPRINT</span>' : ''}${last && r.round === last.round ? '<span class="badge fin">FINAL</span>' : ''}
-      <div class="meta" style="margin-top:2px">${isPast ? `Etapa ${r.round} · concluída${won}` : `${esc(r.locality || '')} · Corrida ${race ? wdShort(race.at) + ' ' + hhmm(race.at) : ''}`}</div></div>${I.chev}</a>`;
+      <div class="meta" style="margin-top:2px">${isPast ? `Etapa ${r.round} · concluída${won}` : `${esc(r.locality || '')} · Corrida ${race ? wdShort(race.at) + ' ' + hhmm(race.at) : ''}`}</div></div>${track(r.locality, 'trk mini') || I.chev}</a>`;
   };
   let html = `<header class="page-h"><h1>Calendário ${DATA.season}</h1></header><p class="sub">Todos os horários de São Paulo</p>
     <div class="seg" role="tablist"><button role="tab" aria-selected="${calTab === 'next'}" class="${calTab === 'next' ? 'on' : ''}" data-cal="next">Próximos</button><button role="tab" aria-selected="${calTab === 'past'}" class="${calTab === 'past' ? 'on' : ''}" data-cal="past">Concluídos</button></div>`;
@@ -396,11 +417,11 @@ function vEvento(round) {
   else if (nx) cdHtml = `<div class="cd"><div class="meta">${S_LONG[nx.kind]} começa em</div><div class="grid" data-cd="${nx.at.toISOString()}" data-fmt="grid">${cdGrid(+nx.at - now())}</div></div>`;
   const tag = st === 'live' ? '<span class="tag">Ao vivo</span>' : st === 'weekend' ? '<span class="tag">Fim de semana em andamento</span>'
     : st === 'done' ? '<span class="tag dim">Concluído</span>' : st === 'soon' ? '<span class="tag">Este fim de semana</span>' : `<span class="tag dim">Etapa ${r.round}</span>`;
-  let html = `<section class="ev-hero"><div class="tools"><a href="#calendario" class="round-btn" aria-label="Voltar" data-back>${I.back}</a><button class="round-btn" aria-label="Compartilhar" data-share="${esc(gpName(r.name))}" data-url="#evento/${r.round}">${I.share}</button></div>
+  let html = `<section class="ev-hero">${track(r.locality, 'trk bgtrk')}<div class="tools"><a href="#calendario" class="round-btn" aria-label="Voltar" data-back>${I.back}</a><button class="round-btn" aria-label="Compartilhar" data-share="${esc(gpName(r.name))}" data-url="#evento/${r.round}">${I.share}</button></div>
     <div style="margin-top:18px">${tag}<h1>${esc(gpName(r.name))}</h1><p class="where">${esc(r.circuit || '')} · ${esc(r.locality || '')}${r.country ? ', ' + esc(COUNTRY_PT[r.country] || r.country) : ''}</p><p class="when">${dateRange(r)} · etapa ${r.round}</p></div>
     ${cdHtml}
     ${st !== 'done' ? `<div class="ev-actions">${subscribed ? `<a class="btn primary" href="#alertas">${I.bell} Avisos ativos · ajustar</a>` : `<button class="btn primary" data-enable>${I.bell} Avisar antes das sessões</button>`}
-      <button class="round-btn" style="width:48px;height:48px;border-radius:12px;background:var(--bg);border:1px solid #3A1A17" aria-label="Adicionar à agenda do celular" data-ics="${r.round}">${I.cal}</button></div>` : ''}</section>
+      <button class="round-btn" style="width:48px;height:48px;border-radius:12px;background:var(--bg);border:1px solid var(--hero-line)" aria-label="Adicionar à agenda do celular" data-ics="${r.round}">${I.cal}</button></div>` : ''}</section>
     <div class="sec-h" style="padding-top:22px"><h2>Programação</h2><span class="meta">Horário de São Paulo</span></div>`;
   const byDay = new Map();
   for (const s of r.sessions) { const k = dayKey(s.at); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(s); }
@@ -419,7 +440,7 @@ function vEvento(round) {
   if (DATA.lastResult?.round === r.round && DATA.lastResult.top?.length) {
     html += `<div class="sec-h"><h2>Resultado da corrida</h2></div><div class="tbl" style="margin-top:0">${DATA.lastResult.top.map((x) => `<div class="r"><span class="ps">${x.pos}</span><span class="cl" style="background:${teamColor(x.team)}"></span><span class="nm"><b>${esc(x.name)}</b><span>${esc(x.team || '')}</span></span><span class="df" style="width:auto">${esc(x.time || '')}</span></div>`).join('')}</div>`;
   }
-  html += `<div class="sec-h"><h2>Circuito</h2></div><div class="row-link" style="margin-top:0"><div style="display:flex;align-items:center;gap:12px"><div class="datebox">${I.pin}</div><div><div style="font-size:15px;font-weight:600">${esc(r.circuit || '')}</div><div class="meta">${esc(r.locality || '')}${r.country ? ', ' + esc(COUNTRY_PT[r.country] || r.country) : ''}</div></div></div></div>`;
+  html += `<div class="sec-h"><h2>Circuito</h2></div><div class="circ">${track(r.locality, 'trk', 'Traçado do ' + (r.circuit || 'circuito'))}<div><div class="nm">${esc(r.circuit || '')}</div><div class="meta" style="text-align:center">${esc(r.locality || '')}${r.country ? ', ' + esc(COUNTRY_PT[r.country] || r.country) : ''} · o ponto vermelho marca a largada</div></div></div>`;
   const keys = [r.locality, gpShort(r.name), COUNTRY_PT[r.country]].filter(Boolean).map((k) => k.toLowerCase());
   const rel = (DATA.news || []).filter((n) => keys.some((k) => (n.title + ' ' + (n.summary || '')).toLowerCase().includes(k))).slice(0, 4);
   if (rel.length) html += `<div class="sec-h"><h2>Notícias do GP</h2><a href="#noticias">Ver todas</a></div><div class="list">${rel.map(newsItem).join('')}</div>`;
@@ -442,8 +463,12 @@ function vCampeonato() {
   if (champTab === 'drivers') {
     if (!d.length) return html + '<div class="empty">A pontuação aparece após a primeira corrida.</div>';
     const lead = +d[0].points;
-    const pod = (x, cls) => x ? `<div class="${cls}"><div class="av" style="background:${teamColor(x.team)}">${esc(x.code || x.family_name.slice(0, 3).toUpperCase())}</div><div class="pos">${x.position}º</div><div class="nm">${esc(x.family_name)}</div><div class="tm">${esc(x.team || '')}</div><div class="pt">${+x.points} pts</div></div>` : '<div></div>';
+    const av = (x) => x.photo
+      ? `<div class="av photo" style="--c:${teamColor(x.team)}"><img src="${esc(x.photo)}" alt="${esc(x.given_name + ' ' + x.family_name)}" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('photo');this.parentNode.style.background='${teamColor(x.team)}';this.replaceWith('${esc(x.code || '')}')"></div>`
+      : `<div class="av" style="background:${teamColor(x.team)}">${esc(x.code || x.family_name.slice(0, 3).toUpperCase())}</div>`;
+    const pod = (x, cls) => x ? `<div class="${cls}">${av(x)}<div class="pos">${x.position}º</div><div class="nm">${esc(x.family_name)}</div><div class="tm">${esc(x.team || '')}</div><div class="pt">${+x.points} pts</div></div>` : '<div></div>';
     html += `<div class="podium">${pod(d[1], 'p2')}${pod(d[0], 'p1')}${pod(d[2], 'p3')}</div>`;
+    if (d.slice(0, 3).some((x) => x.photo)) html += '<p class="credit">Fotos: Wikipédia / Wikimedia Commons (licenças livres).</p>';
     const rest = d.slice(3, showAll ? d.length : 10);
     html += `<div class="tbl"><div class="hd"><span class="ps">POS</span><span class="nm">PILOTO</span><span class="pt">PTS</span><span class="df">DIF</span></div>
       ${rest.map((x) => `<div class="r"><span class="ps">${x.position}</span><span class="cl" style="background:${teamColor(x.team)}"></span><span class="nm"><b>${esc(x.given_name)} ${esc(x.family_name)}</b><span>${esc(x.team || '')}${x.wins > 0 ? ` · ${x.wins} vitória${x.wins > 1 ? 's' : ''}` : ''}</span></span><span class="pt">${+x.points}</span><span class="df">−${lead - x.points}</span></div>`).join('')}
@@ -476,6 +501,8 @@ async function vAlertas() {
     ${items.length ? `<div class="card inbox">${items.map((x) => `<a href="${esc(x.url || '#inicio')}"><div class="ic">${icon(x.url)}</div><div class="tx"><b>${esc(x.title)}</b><span>${esc(x.body || '')}</span></div><time>${relDay(new Date(x.at)) === 'hoje' ? hhmm(new Date(x.at)) : relDay(new Date(x.at))}</time></a>`).join('')}</div>` : '<div class="empty" style="margin-top:0">Os avisos que você receber ficam guardados aqui.</div>'}
     <div class="label">O que avisar</div>
     <div class="card">${sw('weekend', 'Início do fim de semana', 'Na véspera, com a programação do GP')}${sw('practice', 'Treinos livres', 'TL1, TL2 e TL3')}${sw('quali', 'Classificação e Classificação Sprint')}${sw('race', 'Corrida e Sprint')}${sw('news', 'Principais matérias', 'No máximo 2 por dia')}</div>
+    <div class="label">Aparência</div>
+    <div class="seg theme-seg" style="margin-top:0" role="radiogroup" aria-label="Aparência">${[['dark', 'Escuro'], ['light', 'Claro'], ['auto', 'Automático']].map(([v, l]) => `<button role="radio" aria-checked="${THEME === v}" class="${THEME === v ? 'on' : ''}" data-theme-set="${v}">${l}</button>`).join('')}</div>
     <div class="label">Avisar antes da sessão</div>
     <div class="leads">${[[15, '15 min'], [30, '30 min'], [60, '1 h'], [1440, '1 dia']].map(([v, l]) => `<button aria-pressed="${PREFS.leads.includes(v)}" data-lead="${v}">${l}</button>`).join('')}</div>
     <p class="help">Dá para escolher mais de um. Todos os horários seguem o fuso de São Paulo.</p>
@@ -534,6 +561,7 @@ view.addEventListener('click', async (e) => {
     const sub = await getSub(); if (!sub) return;
     try { await post({ action: 'test', endpoint: sub.endpoint }); toast('Aviso de teste enviado.'); } catch (err) { toast('Falhou: ' + err.message); }
   }
+  else if (ds.themeSet) { setTheme(ds.themeSet); render(); }
   else if (ds.pref) { PREFS[ds.pref] = !PREFS[ds.pref]; t.setAttribute('aria-checked', PREFS[ds.pref]); savePrefs(); }
   else if (ds.lead) {
     const v = +ds.lead, has = PREFS.leads.includes(v);
@@ -568,7 +596,9 @@ setInterval(() => {
 
 /* ---------------- início ---------------- */
 if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !window.__rf1Reloaded) { window.__rf1Reloaded = true; location.reload(); } });
   navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'push') { updateDot(); if (location.hash.startsWith('#alertas')) render(); } });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { load(); updateDot(); } });

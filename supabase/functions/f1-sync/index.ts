@@ -55,19 +55,48 @@ async function syncCalendar(season: number) {
   return races.length;
 }
 
+// Foto do piloto pela Wikipédia (imagens de pessoas vivas lá são de licença livre, via Wikimedia Commons).
+async function driverPhoto(driverId: string, wikiUrl?: string): Promise<string | null> {
+  const [c] = await sql`select photo from f1.driver_photos where driver_id = ${driverId}
+    and checked_at > now() - interval '30 days'`;
+  if (c) return c.photo;
+  let photo: string | null = null;
+  try {
+    const title = decodeURIComponent((wikiUrl ?? "").split("/wiki/")[1] ?? "");
+    if (title) {
+      const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
+        headers: { "User-Agent": "RodriguesF1/1.0 (gutemberg.inivendas@gmail.com)" },
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const src: string | undefined = j.thumbnail?.source ?? j.originalimage?.source;
+        if (src) photo = src.replace(/\/\d+px-/, "/400px-");
+      }
+    }
+  } catch (_) { /* sem foto */ }
+  await sql`insert into f1.driver_photos (driver_id, wiki_url, photo, checked_at)
+    values (${driverId}, ${wikiUrl ?? null}, ${photo}, now())
+    on conflict (driver_id) do update set wiki_url = excluded.wiki_url, photo = excluded.photo, checked_at = now()`;
+  return photo;
+}
+
 async function syncStandings(season: number) {
   const d = await getJson(`/${season}/driverstandings.json?limit=50`);
   const dl = d.MRData.StandingsTable.StandingsLists[0]?.DriverStandings ?? [];
   const c = await getJson(`/${season}/constructorstandings.json?limit=30`);
   const cl = c.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
   const lastRound = d.MRData.StandingsTable.StandingsLists[0]?.round ?? null;
+  const photos: Record<string, string | null> = {};
+  for (const s of dl) photos[s.Driver.driverId] = await driverPhoto(s.Driver.driverId, s.Driver.url);
   await sql.begin(async (tx) => {
     if (dl.length) {
       await tx`delete from f1.driver_standings where season = ${season}`;
       for (const s of dl) {
-        await tx`insert into f1.driver_standings values (${season}, ${+(s.position ?? s.positionText ?? 0)},
+        await tx`insert into f1.driver_standings
+          (season, position, code, given_name, family_name, nationality, team, points, wins, driver_id, photo)
+          values (${season}, ${+(s.position ?? s.positionText ?? 0)},
           ${s.Driver.code ?? null}, ${s.Driver.givenName}, ${s.Driver.familyName}, ${s.Driver.nationality ?? null},
-          ${s.Constructors?.[0]?.name ?? null}, ${+s.points}, ${+s.wins})
+          ${s.Constructors?.[0]?.name ?? null}, ${+s.points}, ${+s.wins}, ${s.Driver.driverId}, ${photos[s.Driver.driverId] ?? null})
           on conflict do nothing`;
       }
     }

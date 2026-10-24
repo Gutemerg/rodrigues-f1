@@ -1,6 +1,6 @@
 /* RODRIGUES F1 — service worker: funciona offline e recebe as notificações. */
-const VERSION = 'rf1-v1';
-const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest',
+const VERSION = 'rf1-v2';
+const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'circuits.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-96.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
