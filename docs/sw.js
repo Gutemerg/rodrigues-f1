@@ -1,25 +1,33 @@
 /* RODRIGUES F1 — service worker: funciona offline e recebe as notificações. */
-const VERSION = 'rf1-v5';
+const VERSION = 'rf1-v6';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'circuits.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-96.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' ignora o cache do navegador, para não guardar arquivos antigos na versão nova
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
-// Arquivos do app: usa o cache e atualiza em segundo plano. Dados e imagens externas: direto da rede.
+// Arquivos do app: busca sempre a versão mais nova na rede; sem internet, usa a cópia guardada.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  e.respondWith(caches.open(VERSION).then(async (cache) => {
-    const cached = await cache.match(e.request, { ignoreSearch: true }) || (e.request.mode === 'navigate' ? await cache.match('index.html') : null);
-    const net = fetch(e.request).then((r) => { if (r.ok) cache.put(e.request, r.clone()); return r; }).catch(() => cached);
-    return cached || net;
-  }));
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    try {
+      const r = await fetch(e.request, { cache: 'no-cache' });
+      if (r.ok) cache.put(e.request, r.clone());
+      return r;
+    } catch {
+      return (await cache.match(e.request, { ignoreSearch: true }))
+        || (e.request.mode === 'navigate' ? await cache.match('index.html') : Response.error());
+    }
+  })());
 });
 
 // Caixa de entrada guardada no aparelho (lida pela tela Alertas).
