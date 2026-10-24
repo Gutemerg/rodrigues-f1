@@ -328,7 +328,7 @@ function vInicio() {
     html += `<a class="row-link" href="#evento/${lr.round}"><div style="display:flex;align-items:center;gap:12px"><div class="datebox" style="color:var(--amber)">${I.trophy}</div><div><div class="meta">Vencedor · ${esc(gpName(lr.name))}</div><div style="font-size:15px;font-weight:600">${esc(w.name)}</div></div></div>${I.chev}</a>`;
   }
   html += `<div class="sec-h"><h2>Principais matérias</h2><a href="#noticias">Ver todas</a></div>`;
-  if (news.length) html += newsLead(news[0]) + `<div class="list" style="margin-top:8px">${news.slice(1, 5).map(newsItem).join('')}</div>`;
+  if (news.length) html += `<div class="feed">${news.slice(0, 5).map(newsLead).join('')}</div>`;
   else html += '<div class="empty">As notícias aparecem aqui em instantes.</div>';
   return html;
 }
@@ -368,7 +368,7 @@ function vMateria(id) {
       <p class="note">Esta é uma prévia. A matéria completa está no site do ${esc(n.source)}.</p></article>
     <div style="padding:16px 20px 0"><a class="btn primary" href="${esc(n.link)}" target="_blank" rel="noopener">Ler matéria completa ${I.ext}</a></div>
     ${r ? `<a class="row-link" style="margin:16px 20px 0" href="#evento/${r.round}"><div style="display:flex;align-items:center;gap:12px"><div class="datebox" style="background:var(--red-bg);color:var(--red)">${I.flag}</div><div><div class="meta">Fim de semana</div><div style="font-size:14px;font-weight:600">${esc(gpName(r.name))}</div></div></div>${I.chev}</a>` : ''}
-    ${more.length ? `<div class="label" style="padding-left:20px">Leia também</div><div class="list" style="margin:0 20px">${more.map(newsItem).join('')}</div>` : ''}`;
+    ${more.length ? `<div class="label" style="padding-left:20px">Leia também</div><div class="feed" style="margin:0 4px">${more.map(newsLead).join('')}</div>` : ''}`;
 }
 
 let calTab = 'next';
@@ -443,7 +443,7 @@ function vEvento(round) {
   html += `<div class="sec-h"><h2>Circuito</h2></div><div class="circ">${track(r.locality, 'trk', 'Traçado do ' + (r.circuit || 'circuito'))}<div><div class="nm">${esc(r.circuit || '')}</div><div class="meta" style="text-align:center">${esc(r.locality || '')}${r.country ? ', ' + esc(COUNTRY_PT[r.country] || r.country) : ''} · o ponto vermelho marca a largada</div></div></div>`;
   const keys = [r.locality, gpShort(r.name), COUNTRY_PT[r.country]].filter(Boolean).map((k) => k.toLowerCase());
   const rel = (DATA.news || []).filter((n) => keys.some((k) => (n.title + ' ' + (n.summary || '')).toLowerCase().includes(k))).slice(0, 4);
-  if (rel.length) html += `<div class="sec-h"><h2>Notícias do GP</h2><a href="#noticias">Ver todas</a></div><div class="list">${rel.map(newsItem).join('')}</div>`;
+  if (rel.length) html += `<div class="sec-h"><h2>Notícias do GP</h2><a href="#noticias">Ver todas</a></div><div class="feed">${rel.map(newsLead).join('')}</div>`;
   return html;
 }
 function cdGrid(ms) {
