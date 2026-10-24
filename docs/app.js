@@ -463,15 +463,21 @@ function vCampeonato() {
   if (champTab === 'drivers') {
     if (!d.length) return html + '<div class="empty">A pontuação aparece após a primeira corrida.</div>';
     const lead = +d[0].points;
-    const av = (x) => x.photo
-      ? `<div class="av photo" style="--c:${teamColor(x.team)}"><img src="${esc(x.photo)}" alt="${esc(x.given_name + ' ' + x.family_name)}" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('photo');this.parentNode.style.background='${teamColor(x.team)}';this.replaceWith('${esc(x.code || '')}')"></div>`
-      : `<div class="av" style="background:${teamColor(x.team)}">${esc(x.code || x.family_name.slice(0, 3).toUpperCase())}</div>`;
-    const pod = (x, cls) => x ? `<div class="${cls}">${av(x)}<div class="pos">${x.position}º</div><div class="nm">${esc(x.family_name)}</div><div class="tm">${esc(x.team || '')}</div><div class="pt">${+x.points} pts</div></div>` : '<div></div>';
-    html += `<div class="podium">${pod(d[1], 'p2')}${pod(d[0], 'p1')}${pod(d[2], 'p3')}</div>`;
-    if (d.slice(0, 3).some((x) => x.photo)) html += '<p class="credit">Fotos: Wikipédia / Wikimedia Commons (licenças livres).</p>';
+    const c0 = d[0], gap = d[1] ? +c0.points - +d[1].points : 0;
+    const name = (x) => esc(x.given_name + ' ' + x.family_name);
+    const photo = (x, cls, big) => x.photo
+      ? `<img class="${cls}${/media\.formula1\.com/.test(x.photo) ? '' : ' wiki'}" src="${esc(big ? x.photo.replace('/2col/', '/4col/') : x.photo)}" alt="${name(x)}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">`
+      : `<span class="${cls} nophoto" aria-hidden="true">${esc(x.code || '')}</span>`;
+    html += `<section class="lead-hero" style="--c:${teamColor(c0.team)}">${photo(c0, 'lh-photo', true)}
+      <div class="lh-tx"><div><div class="lh-pos">1º</div><div class="lh-kick">Líder do campeonato</div></div>
+      <div><div class="lh-given">${esc(c0.given_name)}</div><div class="lh-fam">${esc(c0.family_name)}</div><div class="lh-team">${esc(c0.team || '')}${c0.wins > 0 ? ` · ${c0.wins} vitória${c0.wins > 1 ? 's' : ''}` : ''}</div>
+      <div class="lh-pts"><b>${+c0.points}</b><span>pts${gap > 0 ? ` · +${gap} de vantagem` : ''}</span></div></div></div><i class="band"></i></section>`;
+    html += `<div class="duo">${d.slice(1, 3).map((x) => `<div style="--c:${teamColor(x.team)}">${photo(x, 'du-photo')}<div class="tx"><span class="p">${x.position}º</span><div><b>${esc(x.family_name)}</b><span>${esc(x.team || '')}</span><span>${+x.points} pts</span></div></div><i class="band"></i></div>`).join('')}</div>`;
+    if (d.slice(0, 3).some((x) => x.photo)) html += '<p class="credit">Fotos: Formula 1 (uso pessoal).</p>';
+    const mini = (x) => `<span class="mini-av" style="--c:${teamColor(x.team)}">${x.photo ? `<img src="${esc(x.photo)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : ''}</span>`;
     const rest = d.slice(3, showAll ? d.length : 10);
     html += `<div class="tbl"><div class="hd"><span class="ps">POS</span><span class="nm">PILOTO</span><span class="pt">PTS</span><span class="df">DIF</span></div>
-      ${rest.map((x) => `<div class="r"><span class="ps">${x.position}</span><span class="cl" style="background:${teamColor(x.team)}"></span><span class="nm"><b>${esc(x.given_name)} ${esc(x.family_name)}</b><span>${esc(x.team || '')}${x.wins > 0 ? ` · ${x.wins} vitória${x.wins > 1 ? 's' : ''}` : ''}</span></span><span class="pt">${+x.points}</span><span class="df">−${lead - x.points}</span></div>`).join('')}
+      ${rest.map((x) => `<div class="r"><span class="ps">${x.position}</span>${mini(x)}<span class="nm"><b>${esc(x.given_name)} ${esc(x.family_name)}</b><span>${esc(x.team || '')}${x.wins > 0 ? ` · ${x.wins} vitória${x.wins > 1 ? 's' : ''}` : ''}</span></span><span class="pt">${+x.points}</span><span class="df">−${lead - x.points}</span></div>`).join('')}
       ${d.length > 10 ? `<button class="more" data-all>${showAll ? 'Mostrar menos' : 'Ver todos os pilotos'}</button>` : ''}</div>`;
   } else {
     if (!t.length) return html + '<div class="empty">A pontuação aparece após a primeira corrida.</div>';

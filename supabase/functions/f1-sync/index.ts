@@ -86,8 +86,18 @@ async function syncStandings(season: number) {
   const c = await getJson(`/${season}/constructorstandings.json?limit=30`);
   const cl = c.MRData.StandingsTable.StandingsLists[0]?.ConstructorStandings ?? [];
   const lastRound = d.MRData.StandingsTable.StandingsLists[0]?.round ?? null;
+  // Fotos oficiais (recorte de macacão) pela OpenF1; a Wikipédia fica de reserva para quem não tiver.
+  const official: Record<string, string> = {};
+  try {
+    const r = await fetch("https://api.openf1.org/v1/drivers?session_key=latest");
+    if (r.ok) for (const x of await r.json()) {
+      if (x.name_acronym && x.headshot_url) official[x.name_acronym] = String(x.headshot_url).replace(/\/\dcol\//, "/2col/");
+    }
+  } catch (_) { /* segue com a reserva */ }
   const photos: Record<string, string | null> = {};
-  for (const s of dl) photos[s.Driver.driverId] = await driverPhoto(s.Driver.driverId, s.Driver.url);
+  for (const s of dl) {
+    photos[s.Driver.driverId] = official[s.Driver.code] ?? await driverPhoto(s.Driver.driverId, s.Driver.url);
+  }
   await sql.begin(async (tx) => {
     if (dl.length) {
       await tx`delete from f1.driver_standings where season = ${season}`;
