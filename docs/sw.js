@@ -1,5 +1,5 @@
 /* RODRIGUES F1 — service worker: funciona offline e recebe as notificações. */
-const VERSION = 'rf1-v9';
+const VERSION = 'rf1-v10';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'circuits.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-96.png', 'icons/apple-touch-icon.png'];
 

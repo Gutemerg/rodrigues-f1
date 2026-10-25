@@ -152,6 +152,58 @@ function countdownText(ms) {
   return d > 0 ? `${d}d ${p(h)}h ${p(m)}m` : `${p(h)}:${p(m)}:${p(s)}`;
 }
 
+
+/* ---------------- modo TV (APK para Android TV) ---------------- */
+const IS_TV = (() => {
+  try {
+    if (new URLSearchParams(location.search).get('tv') === '1') { localStorage.setItem('rf1.tv', '1'); return true; }
+    return localStorage.getItem('rf1.tv') === '1';
+  } catch { return /[?&]tv=1/.test(location.search); }
+})();
+if (IS_TV) {
+  document.documentElement.dataset.tv = '1';
+  try { localStorage.setItem('rf1.welcomed', 'true'); } catch { /* sem armazenamento */ }
+}
+const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex="0"]';
+function visible(el) {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+}
+function moveFocus(dir) {
+  const els = [...document.querySelectorAll(FOCUSABLE)].filter(visible);
+  const cur = document.activeElement && els.includes(document.activeElement) ? document.activeElement : null;
+  if (!cur) { (els.find((e) => !e.closest('.tabbar') && e.getBoundingClientRect().top >= 0) || els[0])?.focus(); return; }
+  const a = cur.getBoundingClientRect();
+  const ac = { x: a.left + a.width / 2, y: a.top + a.height / 2 };
+  let best = null, bestScore = Infinity;
+  const inBar = !!cur.closest('.tabbar'), vertical = dir === 'ArrowUp' || dir === 'ArrowDown';
+  for (const el of els) {
+    if (el === cur) continue;
+    if (vertical && !!el.closest('.tabbar') !== inBar) continue; // sobe/desce sem trocar de coluna
+    const b = el.getBoundingClientRect();
+    const bc = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    const dx = bc.x - ac.x, dy = bc.y - ac.y;
+    let main, cross;
+    if (dir === 'ArrowDown') { if (b.top < a.bottom - 4 && dy <= 4) continue; main = Math.max(0, b.top - a.bottom); cross = Math.abs(dx); }
+    else if (dir === 'ArrowUp') { if (b.bottom > a.top + 4 && dy >= -4) continue; main = Math.max(0, a.top - b.bottom); cross = Math.abs(dx); }
+    else if (dir === 'ArrowRight') { if (b.left < a.right - 4 && dx <= 4) continue; main = Math.max(0, b.left - a.right); cross = Math.abs(dy); }
+    else { if (b.right > a.left + 4 && dx >= -4) continue; main = Math.max(0, a.left - b.right); cross = Math.abs(dy); }
+    const score = main + cross * 2.2;
+    if (score < bestScore) { bestScore = score; best = el; }
+  }
+  if (best) {
+    best.focus({ preventScroll: true });
+    if (!best.closest('.tabbar')) best.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  } else if (dir === 'ArrowDown' || dir === 'ArrowUp') {
+    scrollBy({ top: dir === 'ArrowDown' ? 320 : -320, behavior: 'smooth' });
+  }
+}
+if (IS_TV) {
+  addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); moveFocus(e.key); }
+  });
+}
+
 /* ---------------- tema ---------------- */
 let THEME = store.get('theme', 'dark');
 const mqLight = matchMedia('(prefers-color-scheme: light)');
@@ -555,7 +607,8 @@ async function vAlertas() {
   const items = await inbox();
   store.set('seen', now()); updateDot();
   let status;
-  if (isIOS && !isStandalone) status = `<div class="status warn">${I.bell}<div>No iPhone, as notificações só funcionam com o app instalado: toque em <b>Compartilhar › Adicionar à Tela de Início</b> e abra por lá.</div></div>`;
+  if (IS_TV) status = `<div class="status off">${I.bell}<div>Na TV não há notificações. Os avisos chegam no app do celular.</div></div>`;
+  else if (isIOS && !isStandalone) status = `<div class="status warn">${I.bell}<div>No iPhone, as notificações só funcionam com o app instalado: toque em <b>Compartilhar › Adicionar à Tela de Início</b> e abra por lá.</div></div>`;
   else if (perm === 'unsupported') status = `<div class="status off">${I.bell}<div>Este navegador não aceita notificações. Tente o Chrome no Android ou o app instalado no iPhone.</div></div>`;
   else if (perm === 'denied') status = `<div class="status warn">${I.bell}<div>As notificações estão bloqueadas. Libere nas configurações do navegador ou do celular.</div></div>`;
   else if (active) status = `<div class="status ok">${I.bell}<div style="flex:1">Notificações ativas neste aparelho.</div><button class="btn ghost" style="min-height:40px;color:inherit" data-test>Testar</button></div>`;
@@ -563,15 +616,15 @@ async function vAlertas() {
   const sw = (k, t, s) => `<div class="pref"><div class="tx"><b>${t}</b>${s ? `<span>${s}</span>` : ''}</div><button class="sw" role="switch" aria-checked="${!!PREFS[k]}" aria-label="${t}" data-pref="${k}"></button></div>`;
   const icon = (u) => (u || '').includes('materia') ? I.news : (u || '').includes('evento') ? I.clock : I.flag;
   return `<header class="page-h"><h1>Alertas</h1></header><div style="margin-top:12px">${status}</div>
-    <div class="label">Recebidos</div>
-    ${items.length ? `<div class="card inbox">${items.map((x) => `<a href="${esc(x.url || '#inicio')}"><div class="ic">${icon(x.url)}</div><div class="tx"><b>${esc(x.title)}</b><span>${esc(x.body || '')}</span></div><time>${relDay(new Date(x.at)) === 'hoje' ? hhmm(new Date(x.at)) : relDay(new Date(x.at))}</time></a>`).join('')}</div>` : '<div class="empty" style="margin-top:0">Os avisos que você receber ficam guardados aqui.</div>'}
-    <div class="label">O que avisar</div>
-    <div class="card">${sw('weekend', 'Início do fim de semana', 'Na véspera, com a programação do GP')}${sw('practice', 'Treinos livres', 'TL1, TL2 e TL3')}${sw('quali', 'Classificação e Classificação Sprint')}${sw('race', 'Corrida e Sprint')}${sw('news', 'Principais matérias', 'No máximo 2 por dia')}</div>
+    <div class="label tv-hide">Recebidos</div>
+    ${IS_TV ? '' : items.length ? `<div class="card inbox">${items.map((x) => `<a href="${esc(x.url || '#inicio')}"><div class="ic">${icon(x.url)}</div><div class="tx"><b>${esc(x.title)}</b><span>${esc(x.body || '')}</span></div><time>${relDay(new Date(x.at)) === 'hoje' ? hhmm(new Date(x.at)) : relDay(new Date(x.at))}</time></a>`).join('')}</div>` : '<div class="empty" style="margin-top:0">Os avisos que você receber ficam guardados aqui.</div>'}
+    <div class="label tv-hide">O que avisar</div>
+    <div class="card tv-hide">${sw('weekend', 'Início do fim de semana', 'Na véspera, com a programação do GP')}${sw('practice', 'Treinos livres', 'TL1, TL2 e TL3')}${sw('quali', 'Classificação e Classificação Sprint')}${sw('race', 'Corrida e Sprint')}${sw('news', 'Principais matérias', 'No máximo 2 por dia')}</div>
     <div class="label">Aparência</div>
     <div class="seg theme-seg" style="margin-top:0" role="radiogroup" aria-label="Aparência">${[['dark', 'Escuro'], ['light', 'Claro'], ['auto', 'Automático']].map(([v, l]) => `<button role="radio" aria-checked="${THEME === v}" class="${THEME === v ? 'on' : ''}" data-theme-set="${v}">${l}</button>`).join('')}</div>
-    <div class="label">Avisar antes da sessão</div>
-    <div class="leads">${[[15, '15 min'], [30, '30 min'], [60, '1 h'], [1440, '1 dia']].map(([v, l]) => `<button aria-pressed="${PREFS.leads.includes(v)}" data-lead="${v}">${l}</button>`).join('')}</div>
-    <p class="help">Dá para escolher mais de um. Todos os horários seguem o fuso de São Paulo.</p>
+    <div class="label tv-hide">Avisar antes da sessão</div>
+    <div class="leads tv-hide">${[[15, '15 min'], [30, '30 min'], [60, '1 h'], [1440, '1 dia']].map(([v, l]) => `<button aria-pressed="${PREFS.leads.includes(v)}" data-lead="${v}">${l}</button>`).join('')}</div>
+    <p class="help tv-hide">Dá para escolher mais de um. Todos os horários seguem o fuso de São Paulo.</p>
     ${active ? '<div style="padding:24px 16px 0"><button class="btn ghost" style="width:100%" data-disable>Desativar notificações neste aparelho</button></div>' : ''}
     <p class="help" style="margin-top:24px">Dados de calendário e campeonato: Jolpica F1 API. Notícias: Motorsport.com e F1Mania. ${DATA.updatedAt ? 'Atualizado ' + ago(new Date(DATA.updatedAt)) + '.' : ''} Este app não é oficial da Fórmula 1.</p>`;
 }
@@ -610,6 +663,11 @@ async function render() {
     lastRoute = h;
   } else scrollTo(0, y);
   if (route === 'boas-vindas') store.set('welcomed', true);
+  if (IS_TV && h !== window.__tvLast) {
+    window.__tvLast = h;
+    const first = [...view.querySelectorAll(FOCUSABLE)].find(visible);
+    if (first) first.focus({ preventScroll: true });
+  }
 }
 addEventListener('hashchange', render);
 
