@@ -333,3 +333,22 @@ img{display:block;max-width:100%}
 .gp{width:20px;font-size:18px}
 .gslot .gav{width:30px;height:30px}
 .gn b{font-size:15px}
+
+/* grid de largada · vista da pista */
+.track{position:relative;margin:0 16px;padding:0 14px 18px;border-radius:18px;overflow:hidden;background:#26262C;color:#F4F4F5}
+.tchk{height:18px;margin:0 -14px;background:conic-gradient(#F4F4F5 25%,#0D0D0F 0 50%,#F4F4F5 0 75%,#0D0D0F 0) 0 0/18px 18px}
+.tlabel{text-align:center;font-size:10px;font-weight:700;letter-spacing:2px;color:#A1A1AA;padding:8px 0 4px;text-transform:uppercase}
+.tmid{position:absolute;left:50%;top:44px;bottom:16px;border-left:2px dashed #3F3F48}
+.trow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;height:126px}
+.tslot{position:relative;padding-top:6px}
+.tslot.r{padding-top:50px}
+.tbox{display:block;height:6px;width:70%;border:2px solid #F4F4F5;border-bottom:0}
+.tslot.r .tbox{margin-left:auto}
+.tin{display:flex;align-items:center;gap:6px;margin-top:8px}
+.tp{font-family:var(--display);font-style:italic;font-weight:800;font-size:28px;width:28px;flex:none;line-height:1}
+.tslot.r .tp{text-align:right}
+.tp.tpole{color:#F5B83D}
+.tcar{flex:1;min-width:0;border-radius:12px;background:#17171B;border-top:4px solid var(--c);padding:7px 6px;display:flex;flex-direction:column;align-items:center}
+.tcar .gav{width:42px;height:42px;border-radius:21px}
+.tcar b{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.5px;margin-top:3px;line-height:1.1}
+.tcar small{font-size:11px;color:#A1A1AA;font-variant-numeric:tabular-nums}

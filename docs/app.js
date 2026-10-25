@@ -316,15 +316,16 @@ function gridSection(r) {
   const both = g.race?.length && g.sprint?.length;
   const tab = both ? gridTab : (g.race?.length ? 'race' : 'sprint');
   const list = g[tab] || [];
-  const slot = (x) => `<div class="gslot ${x.pos % 2 ? 'l' : 'r'}" style="--c:${gColor(x)}">
-      <span class="gp">${x.pos}</span>
+  const car = (x) => `<div class="tcar" style="--c:${gColor(x)}">
       <span class="gav">${x.photo ? `<img src="${esc(x.photo)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : ''}</span>
-      <span class="gn"><b>${esc(x.last || x.code || '')}</b><small>${esc(String(x.team || '').replace(/\s*(F1 Team|Racing)$/i, ''))}</small>${x.time ? `<small class="gt">${esc(x.time)}</small>` : ''}</span></div>`;
+      <b>${esc(x.code || (x.last || '').slice(0, 3).toUpperCase())}</b><small>${esc(x.time || 'sem tempo')}</small></div>`;
+  const side = (x, right) => x ? `<div class="tslot ${right ? 'r' : 'l'}"><i class="tbox"></i>
+      <div class="tin">${right ? car(x) + `<span class="tp">${x.pos}</span>` : `<span class="tp${x.pos === 1 ? ' tpole' : ''}">${x.pos}</span>` + car(x)}</div></div>` : '<div></div>';
   const rows = [];
-  for (let i = 0; i < list.length; i += 2) rows.push(`<div class="grow">${slot(list[i])}${list[i + 1] ? slot(list[i + 1]) : '<div></div>'}</div>`);
+  for (let i = 0; i < list.length; i += 2) rows.push(`<div class="trow">${side(list[i])}${side(list[i + 1], true)}</div>`);
   return `<div class="sec-h" id="grid"><h2>Grid de largada</h2><span class="meta">${tab === 'sprint' ? 'Sprint' : 'Corrida'}</span></div>
     ${both ? `<div class="seg" style="margin-top:0" role="tablist"><button role="tab" aria-selected="${tab === 'race'}" class="${tab === 'race' ? 'on' : ''}" data-grid="race">Corrida</button><button role="tab" aria-selected="${tab === 'sprint'}" class="${tab === 'sprint' ? 'on' : ''}" data-grid="sprint">Sprint</button></div>` : ''}
-    <div class="gridbox">${rows.join('')}</div>
+    <div class="track" role="list" aria-label="Grid de largada"><div class="tchk" aria-hidden="true"></div><div class="tlabel">Largada ↑</div><i class="tmid" aria-hidden="true"></i>${rows.join('')}</div>
     <p class="help">Posições definidas na classificação. Punições podem mudar o grid antes da largada.</p>`;
 }
 function poleRow(r) {
