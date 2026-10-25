@@ -302,6 +302,39 @@ function nextBlock(r) {
   return `<div class="next"><div><div class="meta">Próxima sessão · ${relDay(nx.at)} ${hhmm(nx.at)}</div><div class="t">${S_LONG[nx.kind]}</div></div><div class="count" data-cd="${nx.at.toISOString()}">${countdownText(+nx.at - now())}</div></div>`;
 }
 
+/* ---------------- grid de largada ---------------- */
+let gridTab = 'race';
+function gridOf(r) {
+  const g = DATA.grid;
+  if (!g || +g.round !== +r.round) return null;
+  return (g.race?.length || g.sprint?.length) ? g : null;
+}
+const gColor = (x) => x.color || teamColor(x.team);
+function gridSection(r) {
+  const g = gridOf(r);
+  if (!g) return '';
+  const both = g.race?.length && g.sprint?.length;
+  const tab = both ? gridTab : (g.race?.length ? 'race' : 'sprint');
+  const list = g[tab] || [];
+  const slot = (x) => `<div class="gslot ${x.pos % 2 ? 'l' : 'r'}" style="--c:${gColor(x)}">
+      <span class="gp">${x.pos}</span>
+      <span class="gav">${x.photo ? `<img src="${esc(x.photo)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">` : ''}</span>
+      <span class="gn"><b>${esc(x.last || x.code || '')}</b><small>${esc(String(x.team || '').replace(/\s*(F1 Team|Racing)$/i, ''))}</small>${x.time ? `<small class="gt">${esc(x.time)}</small>` : ''}</span></div>`;
+  const rows = [];
+  for (let i = 0; i < list.length; i += 2) rows.push(`<div class="grow">${slot(list[i])}${list[i + 1] ? slot(list[i + 1]) : '<div></div>'}</div>`);
+  return `<div class="sec-h" id="grid"><h2>Grid de largada</h2><span class="meta">${tab === 'sprint' ? 'Sprint' : 'Corrida'}</span></div>
+    ${both ? `<div class="seg" style="margin-top:0" role="tablist"><button role="tab" aria-selected="${tab === 'race'}" class="${tab === 'race' ? 'on' : ''}" data-grid="race">Corrida</button><button role="tab" aria-selected="${tab === 'sprint'}" class="${tab === 'sprint' ? 'on' : ''}" data-grid="sprint">Sprint</button></div>` : ''}
+    <div class="gridbox">${rows.join('')}</div>
+    <p class="help">Posições definidas na classificação. Punições podem mudar o grid antes da largada.</p>`;
+}
+function poleRow(r) {
+  const g = gridOf(r);
+  const p = g?.race?.[0];
+  if (!p) return '';
+  return `<a class="pole" href="#evento/${r.round}/grid" style="--c:${gColor(p)}"><span class="gav">${p.photo ? `<img src="${esc(p.photo)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>
+    <span class="tx"><span class="meta">Pole position${p.time ? ' · ' + esc(p.time) : ''}</span><b>${esc(p.name || p.last || '')}</b></span><span class="lk">Ver grid ${I.chev}</span></a>`;
+}
+
 /* ---------------- telas ---------------- */
 function vInicio() {
   const r = currentRace();
@@ -312,7 +345,7 @@ function vInicio() {
     html += `<section class="hero" aria-label="Fim de semana de corrida">
       <div class="hero-top"><span class="kicker">Fim de semana de corrida</span>${stateBadge(st, r)}</div>
       <div class="hero-title"><div><h1>${esc(gpName(r.name))}</h1><p class="where">${esc(r.circuit || '')} · ${esc(r.locality || '')} · ${dateRange(r)}</p></div>${track(r.locality)}</div>
-      ${nextBlock(r)}${strip(r)}
+      ${nextBlock(r)}${strip(r)}${poleRow(r)}
       <div style="padding:16px"><a class="btn primary" href="#evento/${r.round}">Ver fim de semana completo ${I.chev}</a></div></section>`;
     const nx = raceAfter(r);
     if (nx) {
@@ -422,6 +455,7 @@ function vEvento(round) {
     ${cdHtml}
     ${st !== 'done' ? `<div class="ev-actions">${subscribed ? `<a class="btn primary" href="#alertas">${I.bell} Avisos ativos · ajustar</a>` : `<button class="btn primary" data-enable>${I.bell} Avisar antes das sessões</button>`}
       <button class="round-btn" style="width:48px;height:48px;border-radius:12px;background:var(--bg);border:1px solid var(--hero-line)" aria-label="Adicionar à agenda do celular" data-ics="${r.round}">${I.cal}</button></div>` : ''}</section>
+    ${gridSection(r)}
     <div class="sec-h" style="padding-top:22px"><h2>Programação</h2><span class="meta">Horário de São Paulo</span></div>`;
   const byDay = new Map();
   for (const s of r.sessions) { const k = dayKey(s.at); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(s); }
@@ -544,7 +578,11 @@ async function render() {
   const html = await fn();
   const y = h === lastRoute ? scrollY : 0;
   view.innerHTML = html;
-  if (h !== lastRoute) { scrollTo(0, 0); lastRoute = h; } else scrollTo(0, y);
+  if (h !== lastRoute) {
+    const target = h.split('/')[2] && document.getElementById(h.split('/')[2]);
+    if (target) target.scrollIntoView(); else scrollTo(0, 0);
+    lastRoute = h;
+  } else scrollTo(0, y);
   if (route === 'boas-vindas') store.set('welcomed', true);
 }
 addEventListener('hashchange', render);
@@ -557,6 +595,7 @@ view.addEventListener('click', async (e) => {
   if ('back' in ds && lastNav > 1) { e.preventDefault(); history.back(); return; }
   if (ds.filter) { newsFilter = ds.filter; render(); }
   else if (ds.cal) { calTab = ds.cal; render(); }
+  else if (ds.grid) { gridTab = ds.grid; render(); }
   else if (ds.champ) { champTab = ds.champ; showAll = false; render(); }
   else if ('all' in ds) { showAll = !showAll; render(); }
   else if (ds.share) { e.preventDefault(); share(ds.share, ds.url); }

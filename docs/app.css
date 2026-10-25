@@ -310,3 +310,26 @@ img{display:block;max-width:100%}
 .lh-pts span{max-width:120px;line-height:1.3}
 :root[data-theme="light"] .lead-hero{background:color-mix(in srgb,var(--c) 18%,var(--surface))}
 :root[data-theme="light"] .duo > div{background:color-mix(in srgb,var(--c) 11%,var(--surface))}
+
+/* grid de largada */
+.gridbox{margin:0 16px;padding:12px 10px;border-radius:16px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.grow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.gslot{display:flex;align-items:center;gap:8px;padding:8px;border-radius:12px;background:var(--surface2);border-left:3px solid var(--c);min-width:0}
+.gslot.r{margin-top:22px}
+.gp{font-family:var(--display);font-weight:700;font-size:20px;width:22px;text-align:center;flex:none}
+.gav{width:36px;height:36px;flex:none;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--c) 30%,var(--surface))}
+.gav img{width:100%;height:100%;object-fit:cover;object-position:50% 8%}
+.gn{min-width:0;display:flex;flex-direction:column}
+.gn b{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;font-family:var(--display);letter-spacing:.3px}
+.gn small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gn .gt{font-variant-numeric:tabular-nums}
+.pole{margin:12px 16px 0;padding:10px 12px;border-radius:14px;background:var(--surface2);border-left:3px solid var(--c);display:flex;align-items:center;gap:10px;color:var(--text)}
+.pole .gav{width:40px;height:40px;border-radius:20px}
+.pole .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.pole .tx b{font-size:15px;font-weight:700}
+.pole .lk{display:flex;align-items:center;gap:2px;font-size:13px;font-weight:600;color:var(--red);white-space:nowrap}
+.pole .lk .ico{width:16px;height:16px}
+.gslot{gap:6px;padding:7px 6px}
+.gp{width:20px;font-size:18px}
+.gslot .gav{width:30px;height:30px}
+.gn b{font-size:15px}

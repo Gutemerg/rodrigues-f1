@@ -138,6 +138,69 @@ async function syncStandings(season: number) {
   return { drivers: dl.length, teams: cl.length, lastRound };
 }
 
+// ---------- grid de largada (OpenF1, disponível de graça logo após a classificação) ----------
+const OF1 = "https://api.openf1.org/v1";
+async function of1(path: string) {
+  const r = await fetch(`${OF1}${path}`);
+  if (!r.ok) throw new Error(`openf1 ${path} -> HTTP ${r.status}`);
+  return await r.json();
+}
+const lap = (s?: number | null) => {
+  if (!s) return null;
+  const m = Math.floor(s / 60), r = (s - m * 60).toFixed(3).padStart(6, "0");
+  return m ? `${m}:${r}` : r;
+};
+async function gridFor(sessionKey: number) {
+  let rows: any[] = await of1(`/starting_grid?session_key=${sessionKey}`).catch(() => []);
+  let fromResult = false;
+  if (!rows.length) {
+    rows = await of1(`/session_result?session_key=${sessionKey}`).catch(() => []);
+    fromResult = true;
+  }
+  if (!rows.length) return null;
+  await new Promise((r) => setTimeout(r, 400)); // respeita o limite de 3 req/s
+  const drivers: any[] = await of1(`/drivers?session_key=${sessionKey}`).catch(() => []);
+  const byNum = new Map(drivers.map((d) => [d.driver_number, d]));
+  return rows.filter((x) => x.position).sort((a, b) => a.position - b.position).map((x) => {
+    const d = byNum.get(x.driver_number) ?? {};
+    const best = fromResult ? (Array.isArray(x.duration) ? x.duration.filter(Boolean).at(-1) : x.duration) : x.lap_duration;
+    return {
+      pos: x.position, num: x.driver_number, code: d.name_acronym ?? null,
+      name: d.full_name ? String(d.full_name).replace(/\b(\p{L})(\p{L}*)/gu, (_: string, a: string, b: string) => a + b.toLowerCase()) : null,
+      last: d.last_name ?? null, team: d.team_name ?? null, color: d.team_colour ? `#${d.team_colour}` : null,
+      photo: d.headshot_url ? String(d.headshot_url).replace(/\/\dcol\//, "/2col/") : null, time: lap(best),
+    };
+  });
+}
+async function syncGrid(season: number) {
+  // próxima corrida que ainda não terminou e cuja classificação já aconteceu
+  const [race] = await sql`
+    select r.round, max(s.starts_at) filter (where s.kind = 'RACE') race_at,
+      max(s.starts_at) filter (where s.kind = 'QUALI') quali_at, max(s.starts_at) filter (where s.kind = 'SQ') sq_at
+    from f1.races r join f1.sessions s using (season, round)
+    where r.season = ${season} group by r.round
+    having max(s.starts_at) filter (where s.kind = 'RACE') > now() - interval '4 hours'
+    order by r.round limit 1`;
+  if (!race) return "sem corrida";
+  const now = Date.now();
+  const sessions: any[] = await of1(`/sessions?year=${season}&date_start>=${new Date(+new Date(race.race_at) - 4 * 864e5).toISOString().slice(0, 10)}`);
+  const near = (t: any, name: string) => t && sessions.find((x) => x.session_name === name &&
+    Math.abs(+new Date(x.date_start) - +new Date(t)) < 3 * 36e5);
+  const out: Record<string, unknown> = { round: race.round };
+  for (const [key, at, name] of [["race", race.quali_at, "Qualifying"], ["sprint", race.sq_at, "Sprint Qualifying"]] as const) {
+    if (!at || now < +new Date(at) + 50 * 60e3) continue; // só depois de a sessão acabar
+    const sess = near(at, name) ?? (name === "Sprint Qualifying" ? near(at, "Sprint Shootout") : null);
+    if (!sess) continue;
+    await new Promise((r) => setTimeout(r, 400));
+    const items = await gridFor(sess.session_key);
+    if (items?.length) out[key] = items;
+  }
+  if (!out.race && !out.sprint) return `aguardando classificação da etapa ${race.round}`;
+  await sql`insert into f1.meta (key, value) values ('grid', ${sql.json(out)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()`;
+  return { round: race.round, race: (out.race as any[])?.length ?? 0, sprint: (out.sprint as any[])?.length ?? 0 };
+}
+
 // ---------- notícias ----------
 function decode(s: string) {
   return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -212,6 +275,9 @@ Deno.serve(async (req) => {
   }
   if (what === "all" || what === "standings") {
     try { out.standings = await syncStandings(season); } catch (e) { out.standings = `erro: ${(e as Error).message}`; }
+  }
+  if (what === "all" || what === "grid") {
+    try { out.grid = await syncGrid(season); } catch (e) { out.grid = `erro: ${(e as Error).message}`; }
   }
   if (what === "all" || what === "news") out.news = await syncNews();
   await sql`insert into f1.meta (key, value) values ('last_sync', ${sql.json(out)})
