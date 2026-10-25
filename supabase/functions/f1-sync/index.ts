@@ -201,6 +201,51 @@ async function syncGrid(season: number) {
   return { round: race.round, race: (out.race as any[])?.length ?? 0, sprint: (out.sprint as any[])?.length ?? 0 };
 }
 
+// ---------- vídeos (YouTube, canais brasileiros de F1) ----------
+const CHANNELS = [
+  { name: "Grande Prêmio", id: "UC9OlHEgxoaY6QY6nWPoiqQg" },
+  { name: "Motorsport Brasil", id: "UCvm40-L5lbzlxQSbVnfX8pQ" },
+  { name: "F1Mania", id: "UCp6p2Jgf0vsXsP-F-jLa33A" },
+  { name: "Projeto Motor", id: "UCTdkDzyI3BBLjjWw0pA2eFw" },
+];
+const NOT_F1_VIDEO = /\b(MotoGP|Moto2|Moto3|Stock Car|Indy|IndyCar|NASCAR|WEC|Le Mans|F[óo]rmula E|Rally|WRC|Superbike|Porsche Cup|F[óo]rmula 2|F[óo]rmula 3|\bF2\b|\bF3\b)/i;
+async function syncVideos() {
+  const report: Record<string, string> = {};
+  for (const ch of CHANNELS) {
+    try {
+      const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${ch.id}`);
+      if (!r.ok) { report[ch.name] = `HTTP ${r.status}`; continue; }
+      const xml = await r.text();
+      const entries = xml.match(/<entry>[\s\S]*?<\/entry>/g) ?? [];
+      let n = 0;
+      for (const e of entries) {
+        const id = e.match(/<yt:videoId>([^<]+)</)?.[1];
+        const link = e.match(/<link rel="alternate" href="([^"]+)"/)?.[1] ?? "";
+        const title = decode(e.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "");
+        const pub = e.match(/<published>([^<]+)</)?.[1];
+        if (!id || !title || !pub || link.includes("/shorts/") || NOT_F1_VIDEO.test(title)) continue;
+        if (Date.now() - +new Date(pub) > 14 * 864e5) continue;
+        const views = +(e.match(/<media:statistics views="(\d+)"/)?.[1] ?? 0);
+        const [old] = await sql`select embeddable from f1.videos where id = ${id}`;
+        let embeddable = old?.embeddable ?? null;
+        if (embeddable === null) {
+          const o = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent("https://www.youtube.com/watch?v=" + id)}`);
+          embeddable = o.ok;
+        }
+        await sql`insert into f1.videos (id, title, channel, published_at, thumb, views, embeddable)
+          values (${id}, ${title}, ${ch.name}, ${pub}, ${`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}, ${views}, ${embeddable})
+          on conflict (id) do update set title = excluded.title, views = excluded.views, checked_at = now()`;
+        n++;
+      }
+      report[ch.name] = `${n} vídeos`;
+    } catch (e) {
+      report[ch.name] = `erro: ${(e as Error).message}`;
+    }
+  }
+  await sql`delete from f1.videos where published_at < now() - interval '21 days'`;
+  return report;
+}
+
 // ---------- notícias ----------
 function decode(s: string) {
   return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -280,6 +325,7 @@ Deno.serve(async (req) => {
     try { out.grid = await syncGrid(season); } catch (e) { out.grid = `erro: ${(e as Error).message}`; }
   }
   if (what === "all" || what === "news") out.news = await syncNews();
+  if (what === "all" || what === "videos") out.videos = await syncVideos();
   await sql`insert into f1.meta (key, value) values ('last_sync', ${sql.json(out)})
     on conflict (key) do update set value = excluded.value, updated_at = now()`;
   return Response.json(out);

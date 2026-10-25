@@ -336,6 +336,31 @@ function poleRow(r) {
     <span class="tx"><span class="meta">Pole position${p.time ? ' · ' + esc(p.time) : ''}</span><b>${esc(p.name || p.last || '')}</b></span><span class="lk">Ver grid ${I.chev}</span></a>`;
 }
 
+/* ---------------- vídeos ---------------- */
+const fmtViews = (n) => !n ? '' : n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} mi de visualizações` : n >= 1e3 ? `${Math.round(n / 1e3)} mil visualizações` : `${n} visualizações`;
+const videoCard = (v, big) => `<a class="vcard${big ? ' big' : ''}" href="#video/${esc(v.id)}">
+    <span class="vthumb"><img src="${esc(v.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer"><i class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></i></span>
+    <span class="vtx"><span class="kicker red">${esc(v.channel)}</span><b>${esc(v.title)}</b><span class="meta">${ago(new Date(v.published_at))}${+v.views ? ' · ' + fmtViews(+v.views) : ''}</span></span></a>`;
+let videoFilter = 'Todos';
+function vVideos() {
+  const all = DATA.videos || [];
+  const chans = ['Todos', ...new Set(all.map((v) => v.channel))];
+  const list = videoFilter === 'Todos' ? all : all.filter((v) => v.channel === videoFilter);
+  let html = `<header class="page-h"><h1>Vídeos</h1></header>
+    <div class="chips" role="group" aria-label="Filtrar por canal">${chans.map((c) => `<button class="chip ${c === videoFilter ? 'on' : ''}" aria-pressed="${c === videoFilter}" data-vfilter="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
+  if (!list.length) return html + '<div class="empty">Os vídeos aparecem aqui em instantes.</div>';
+  return html + `<div class="feed">${videoCard(list[0], true)}${list.slice(1).map((v) => videoCard(v)).join('')}</div>`;
+}
+function vVideo(id) {
+  const all = DATA.videos || [];
+  const v = all.find((x) => x.id === id) || { id, title: '', channel: '' };
+  const more = all.filter((x) => x.id !== id).slice(0, 8);
+  const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&hl=pt-BR`;
+  return `<div class="vplayer"><iframe src="${src}" title="${esc(v.title || 'Vídeo')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+    <div class="vinfo"><a href="#videos" class="round-btn" aria-label="Voltar" data-back>${I.back}</a><div><span class="kicker red">${esc(v.channel)}</span><h1>${esc(v.title)}</h1>${v.published_at ? `<span class="meta">${ago(new Date(v.published_at))}${+v.views ? ' · ' + fmtViews(+v.views) : ''}</span>` : ''}</div></div>
+    ${more.length ? `<div class="label">Mais vídeos</div><div class="feed">${more.map((x) => videoCard(x)).join('')}</div>` : ''}`;
+}
+
 /* ---------------- telas ---------------- */
 function vInicio() {
   const r = currentRace();
@@ -572,9 +597,9 @@ async function render() {
   const h = location.hash.replace(/^#/, '') || (store.get('welcomed', false) ? 'inicio' : 'boas-vindas');
   const [route, arg] = h.split('/');
   document.body.classList.toggle('hide-tabs', route === 'boas-vindas');
-  const tab = { evento: 'calendario', materia: 'noticias' }[route] || route;
+  const tab = { evento: 'calendario', materia: 'noticias', video: 'videos' }[route] || route;
   document.querySelectorAll('.tabbar a').forEach((a) => a.classList.toggle('on', a.dataset.tab === tab));
-  const map = { inicio: vInicio, noticias: vNoticias, materia: () => vMateria(arg), calendario: vCalendario, evento: () => vEvento(arg), campeonato: vCampeonato, alertas: vAlertas, 'boas-vindas': vBoasVindas };
+  const map = { videos: vVideos, video: () => vVideo(arg), inicio: vInicio, noticias: vNoticias, materia: () => vMateria(arg), calendario: vCalendario, evento: () => vEvento(arg), campeonato: vCampeonato, alertas: vAlertas, 'boas-vindas': vBoasVindas };
   const fn = map[route] || vInicio;
   const html = await fn();
   const y = h === lastRoute ? scrollY : 0;
@@ -596,6 +621,7 @@ view.addEventListener('click', async (e) => {
   if ('back' in ds && lastNav > 1) { e.preventDefault(); history.back(); return; }
   if (ds.filter) { newsFilter = ds.filter; render(); }
   else if (ds.cal) { calTab = ds.cal; render(); }
+  else if (ds.vfilter) { videoFilter = ds.vfilter; render(); }
   else if (ds.grid) { gridTab = ds.grid; render(); }
   else if (ds.champ) { champTab = ds.champ; showAll = false; render(); }
   else if ('all' in ds) { showAll = !showAll; render(); }

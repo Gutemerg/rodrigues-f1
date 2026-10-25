@@ -27,12 +27,14 @@ Deno.serve(async (req) => {
     from f1.news
     where title !~* '^(MotoGP|Moto2|Moto3|MotoE|F2|F3|F1 Academy|Indy|IndyCar|Stock|WEC|Fórmula E|Formula E|NASCAR|WSBK|Superbike|Porsche)\\M'
     order by published_at desc limit 60`;
+  const videos = await sql`select id, title, channel, published_at, thumb, views from f1.videos
+    where embeddable and published_at > now() - interval '14 days' order by published_at desc limit 40`;
   const meta = await sql`select key, value, updated_at from f1.meta where key in ('standings_round', 'last_sync', 'grid')`;
   const [{ value: vapid }] = await sql`select value from f1.config where key = 'vapid_public'`;
   const m = Object.fromEntries(meta.map((x) => [x.key, { ...x.value, updated_at: x.updated_at }]));
 
   return new Response(JSON.stringify({
-    season, races, drivers, teams, news, vapid,
+    season, races, drivers, teams, news, videos, vapid,
     lastResult: m.standings_round?.last ?? null,
     standingsRound: m.standings_round?.round ?? null,
     updatedAt: m.last_sync?.updated_at ?? null,
